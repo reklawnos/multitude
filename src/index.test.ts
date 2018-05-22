@@ -14,10 +14,12 @@ interface ContextsIterator<T> {
   };
 }
 
+type ContextGenerators<T> = {
+  [ContextKey in keyof T]: { [contextName: string]: () => T[ContextKey] };
+};
+
 function createContextsIterator<T extends object>(
-  contextGenerators: {
-    [ContextKey in keyof T]: { [contextName: string]: () => T[ContextKey] };
-  },
+  contextGenerators: ContextGenerators<T>,
 ): ContextsIterator<T> {
   const contextGeneratorLists = Object.entries(contextGenerators)
     .map(([key, value]) => [
@@ -129,6 +131,91 @@ function runInContexts<T>(contextsIterator: ContextsIterator<T>, spec: (context:
   }
 }
 
+enum TestItemType {
+  WithSubject = 'WithSubject',
+  Spec = 'Spec',
+}
+
+type WithSubjectItem<C, PS, S> = {
+  type: TestItemType.WithSubject;
+  name: string,
+  subjectGenerator: (context: C, parentSubject: PS) => S;
+  children: TestItem<C, S>[];
+};
+
+type SpecItem<C, PS> = {
+  type: TestItemType.Spec;
+  name: string,
+  spec: (subject: PS) => void;
+};
+
+type TestItem<C, PS, S=any> =
+  | WithSubjectItem<C, PS, S>
+  | SpecItem<C, PS>;
+
+function withSubject<C, ParentSubject = undefined, Subject = ParentSubject>(
+  name: string,
+  subjectGenerator: (context: C, parentSubject: ParentSubject) => Subject,
+  tests: TestItem<C, Subject>[],
+): WithSubjectItem<C, ParentSubject, Subject> {
+  return {
+    type: TestItemType.WithSubject,
+    name,
+    subjectGenerator,
+    children: tests,
+  };
+}
+
+function spec<C, ParentSubject>(
+  name: string,
+  f: (subject: ParentSubject) => void,
+): SpecItem<C, ParentSubject> {
+  return {
+    type: TestItemType.Spec,
+    name,
+    spec: f,
+  };
+}
+
+function withContexts<C>(contextGenerators: ContextGenerators<C>, tests: TestItem<C, undefined>[]) {
+  const contexts = createContextsIterator(contextGenerators);
+
+  return tests;
+}
+
+const res = withContexts({
+  color: {
+    'red': () => 'red',
+    'blue': () => 'blue',
+    'green': () => 'green',
+  },
+
+  bold: {
+    'bold': () => true,
+    'not bold': () => false,
+  },
+
+  italic: {
+    'italic': () => true,
+    'not italic': () => false,
+  },
+}, [
+  withSubject('test', c => null, [
+    spec('wow', () => {}),
+
+    withSubject('null to string', (c, s) => c.color, [
+      spec('hi', (s: string) => {}),
+
+      withSubject('string to num', (c, s) => c.bold ? 3 : 0, [
+        spec('hi', (s: number) => {}),
+      ]),
+    ]),
+  ]),
+]);
+console.log(
+  res,
+);
+
 it('does a thing', () => {
   runInContexts(contexts, (context) => {
     const { color, bold, italic } = context;
@@ -136,84 +223,11 @@ it('does a thing', () => {
   });
 });
 
-
 /*
-interface ErrorInContext<T> {
-  error: Error;
-  context: T;
-  contextName: string;
-}
-
-type ContextsType = { [k: string]: { [k: string]: any } };
-
-type MapValueOf<T extends { [k: string]: any }> = T extends { [k: string]: infer U }
-  ? U
-  : never;
-
-type ValuesOf<T extends ContextsType> = {
-  [K in keyof T]: MapValueOf<T[K]>;
-};
-
-// type ContextItemOfContext
-
-function doForContextMap<T extends ContextsType>(
-  contextMap: T,
-  currentContext: Partial<ValuesOf<T>>,
-  currentContextName: string,
-  spec: (context: T) => any,
-): ErrorInContext<T>[] {
-  const keys = Object.keys(contextMap);
-
-  if (keys.length === 0) {
-    try {
-      spec(currentContext as ValuesOf<T>);
-    } catch (e) {
-      const res: ErrorInContext<T> = {
-        context: currentContext as any,
-        contextName: currentContextName,
-        error: e as Error,
-      };
-      return [res];
-    }
-
-    return [];
-  }
-
-  const prop = keys[0];
-
-  const {
-    [prop]: contexts,
-    // @ts-ignore
-    ...rest,
-  } = contextMap;
-
-  return Object.entries(contexts).reduce((allErrors: ErrorInContext<T>[], [contextName, contextValue]) => [
-    ...allErrors,
-    ...doForContextMap(
-      rest,
-      // @ts-ignore
-      { ...currentContext, [prop]: contextValue },
-      currentContextName + `when ${contextName} `,
-      spec,
-    ),
-  ], []);
-}
-
-function doForContexts<T extends ContextsType>(contextMap: T, spec: (context: T) => any) {
-  doForContextMap(contextMap, {}, '', spec);
-}
-
-function brokenThing(color: string, bold: boolean, italic: boolean): string {
-  if (italic) {
-    return 'red';
-  }
-  return color;
-}
-
-it ('it has a thing', () => {
-  doForContexts(contexts, (contex: ValuesOf<typeof contexts>) => {
-    expect(brokenThing(context.color, context.bold, context.italic)).toBe(context.color);
-  });
-});
-
+describe('test', [
+  describe('wow', [
+    it('does a thing', () => {
+    }),
+  ]),
+]);
 */
