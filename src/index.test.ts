@@ -102,18 +102,24 @@ const contexts = createContextsIterator({
   },
 });
 
-function brokenThing(color: string, bold: boolean, italic: boolean): string {
+function brokenThing(color: string, bold: boolean, italic: boolean) {
+  let overrideColor = color;
   if (italic) {
-    return 'red';
+    overrideColor = 'red';
   }
-  return color;
+
+  return {
+    color: overrideColor,
+    bold,
+    italic,
+  };
 }
 
-function runInContexts<T>(contextsIterator: ContextsIterator<T>, spec: (context: T) => void) {
+function runInContexts<T, S>(contextsIterator: ContextsIterator<T>, getSubject: (context: T) => S, spec: (subject: S, context: T) => void) {
   const caughtErrors: [Error, {}][] = [];
   for (let value of contextsIterator) {
     try {
-      spec(value.context);
+      spec(getSubject(value.context), value.context);
     } catch(e) {
       caughtErrors.push([e, value.contextNames]);
     }
@@ -127,35 +133,48 @@ function runInContexts<T>(contextsIterator: ContextsIterator<T>, spec: (context:
       out += lines.join('\n') + '\n\n';
       out += e.message + '\n\n\n';
     });
-    throw new Error(out);
+
+    caughtErrors[0][0].message = out;
+
+    throw caughtErrors[0][0];
   }
 }
 
 enum TestItemType {
   WithSubject = 'WithSubject',
+  WithContexts = 'WithContexts',
   Spec = 'Spec',
 }
 
 type WithSubjectItem<C, PS, S> = {
   type: TestItemType.WithSubject;
   name: string,
-  subjectGenerator: (context: C, parentSubject: PS) => S;
+  subjectGenerator: (parentSubject: PS, context: C) => S;
   children: TestItem<C, S>[];
+};
+
+type WithContextsItem<C, PS> = {
+  type: TestItemType.WithContexts;
+  name: string;
+  contextGeneratorMap: (cg: ContextGenerators<C>) => ContextGenerators<C>;
+  children: TestItem<C, PS>[];
 };
 
 type SpecItem<C, PS> = {
   type: TestItemType.Spec;
   name: string,
-  spec: (subject: PS) => void;
+  spec: (subject: PS, context: C) => void;
 };
+
 
 type TestItem<C, PS, S=any> =
   | WithSubjectItem<C, PS, S>
-  | SpecItem<C, PS>;
+  | SpecItem<C, PS>
+  | WithContextsItem<C, PS>;
 
 function withSubject<C, ParentSubject = undefined, Subject = ParentSubject>(
   name: string,
-  subjectGenerator: (context: C, parentSubject: ParentSubject) => Subject,
+  subjectGenerator: (parentSubject: ParentSubject, context: C) => Subject,
   tests: TestItem<C, Subject>[],
 ): WithSubjectItem<C, ParentSubject, Subject> {
   return {
@@ -168,7 +187,7 @@ function withSubject<C, ParentSubject = undefined, Subject = ParentSubject>(
 
 function spec<C, ParentSubject>(
   name: string,
-  f: (subject: ParentSubject) => void,
+  f: (subject: ParentSubject, context: C) => void,
 ): SpecItem<C, ParentSubject> {
   return {
     type: TestItemType.Spec,
@@ -177,13 +196,74 @@ function spec<C, ParentSubject>(
   };
 }
 
-function withContexts<C>(contextGenerators: ContextGenerators<C>, tests: TestItem<C, undefined>[]) {
-  const contexts = createContextsIterator(contextGenerators);
-
-  return tests;
+function runInUniverse<C extends object, S>(
+  contextGenerators: ContextGenerators<C>,
+  tests: TestItem<C, S>[],
+  getSubject: (context: C) => S,
+) {
+  tests.forEach((test) => {
+    switch (test.type) {
+      case TestItemType.Spec: {
+        it(test.name, () => {
+          const contexts = createContextsIterator<C>(contextGenerators);
+          runInContexts<C, S>(contexts, getSubject, test.spec);
+        });
+        break;
+      }
+      case TestItemType.WithSubject: {
+        describe(test.name, () => {
+          runInUniverse(contextGenerators, test.children, (context) => {
+            return test.subjectGenerator(getSubject(context), context);
+          });
+        });
+        break;
+      }
+      case TestItemType.WithContexts: {
+        // TODO: should have a decent name
+        describe(test.name, () => {
+          runInUniverse(test.contextGeneratorMap(contextGenerators), test.children, getSubject);
+        });
+      }
+    }
+  });
 }
 
-const res = withContexts({
+function withUniverse<C extends object>(contextGenerators: ContextGenerators<C>, tests: TestItem<C, undefined>[]) {
+  runInUniverse<C, undefined>(contextGenerators, tests, () => undefined);
+}
+
+function withContexts<C extends object, S>(
+  name: string,
+  mapper: (contextGenerators: ContextGenerators<C>) => ContextGenerators<C>,
+  tests: TestItem<C, S>[],
+): WithContextsItem<C, S> {
+  return {
+    type: TestItemType.WithContexts,
+    name,
+    contextGeneratorMap: mapper,
+    children: tests,
+  };
+}
+
+function fixAxes<C extends object>(
+  contextGenerators: ContextGenerators<C>,
+  axesValues: {
+    [K in keyof C]?: string;
+  },
+) {
+  // @ts-ignore
+  const out = { ...contextGenerators } as any;
+
+  Object.entries(axesValues).forEach(([key, contextItem]) => {
+    out[key] = {
+      [contextItem]: (contextGenerators as any)[key][contextItem],
+    };
+  });
+
+  return out as ContextGenerators<C>;
+}
+
+withUniverse({
   color: {
     'red': () => 'red',
     'blue': () => 'blue',
@@ -200,34 +280,25 @@ const res = withContexts({
     'not italic': () => false,
   },
 }, [
-  withSubject('test', c => null, [
-    spec('wow', () => {}),
-
-    withSubject('null to string', (c, s) => c.color, [
-      spec('hi', (s: string) => {}),
-
-      withSubject('string to num', (c, s) => c.bold ? 3 : 0, [
-        spec('hi', (s: number) => {}),
+  withSubject('brokenThing', (s, c) => brokenThing(c.color, c.bold, c.italic), [
+    withContexts('when red', gc => fixAxes(gc, { color: 'red' }), [
+      withSubject('color', s => s.color, [
+        spec('has the right color', (color, context) => {
+          expect(color).toBe(context.color);
+        }),
       ]),
+    ]),
+
+    withSubject('bold', s => s.bold, [
+      spec('has the right boldness', (bold, context) => {
+        expect(bold).toBe(context.bold);
+      }),
+    ]),
+
+    withSubject('italic', s => s.italic, [
+      spec('has the right italic-ness', (italic, context) => {
+        expect(italic).toBe(context.italic);
+      }),
     ]),
   ]),
 ]);
-console.log(
-  res,
-);
-
-it('does a thing', () => {
-  runInContexts(contexts, (context) => {
-    const { color, bold, italic } = context;
-    expect(brokenThing(color, bold, italic)).toBe(color);
-  });
-});
-
-/*
-describe('test', [
-  describe('wow', [
-    it('does a thing', () => {
-    }),
-  ]),
-]);
-*/
