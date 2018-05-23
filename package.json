@@ -2,6 +2,7 @@
   "name": "multitude",
   "version": "0.0.1",
   "description": "A library for writing exhaustive tests",
+  "license": "MIT",
   "main": "dist/multitude.cjs.js",
   "module": "dist/multitude.esm.js",
   "browser": "dist/multitude.umd.js",
