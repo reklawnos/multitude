@@ -1,10 +1,10 @@
 {
-  "name": "omnispec",
+  "name": "multitude",
   "version": "0.0.1",
-  "description": "A test expression framework(ish)",
-  "main": "dist/omnispec.cjs.js",
-  "module": "dist/omnispec.esm.js",
-  "browser": "dist/omnispec.umd.js",
+  "description": "A library for writing exhaustive tests",
+  "main": "dist/multitude.cjs.js",
+  "module": "dist/multitude.esm.js",
+  "browser": "dist/multitude.umd.js",
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
