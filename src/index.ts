@@ -4,33 +4,33 @@ import {
   ContextGenerators,
 } from './ContextUtils';
 
-enum TestItemType {
+export enum TestItemType {
   WithSubject = 'WithSubject',
   WithContexts = 'WithContexts',
   Spec = 'Spec',
 }
 
-type WithSubjectItem<C, PS, S> = {
+export type WithSubjectItem<C, PS, S> = {
   type: TestItemType.WithSubject;
   name: string,
   subjectGenerator: (parentSubject: PS, context: C) => S;
   children: TestItem<C, S>[];
 };
 
-type WithContextsItem<C, PS> = {
+export type WithContextsItem<C, PS> = {
   type: TestItemType.WithContexts;
   name: string;
   contextGeneratorMap: (cg: ContextGenerators<C>) => ContextGenerators<C>;
   children: TestItem<C, PS>[];
 };
 
-type SpecItem<C, PS> = {
+export type SpecItem<C, PS> = {
   type: TestItemType.Spec;
   name: string,
   spec: (subject: PS, context: C) => void;
 };
 
-type TestItem<C, PS, S = any> =
+export type TestItem<C, PS, S = any> =
   | WithSubjectItem<C, PS, S>
   | WithContextsItem<C, PS>
   | SpecItem<C, PS>;

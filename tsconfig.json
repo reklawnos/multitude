@@ -12,9 +12,10 @@
     "moduleResolution": "node",
     "newLine": "lf",
     "declaration": true,
+    "declarationDir": "dist/types",
     "outDir": "dist/lib"
   },
   "include": [
-      "./src/**/*"
+      "src"
   ]
 }

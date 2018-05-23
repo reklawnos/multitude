@@ -1,4 +1,4 @@
-interface ContextValue<T> {
+export interface ContextValue<T> {
   context: T;
   contextNames: {
     [K in keyof T]: string;
