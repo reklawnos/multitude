@@ -1,3 +1,4 @@
+// tslint:disable object-literal-key-quotes
 import {
   withUniverse,
   withSubject,

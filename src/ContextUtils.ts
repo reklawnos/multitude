@@ -1,4 +1,4 @@
-export interface ContextValue<T> {
+interface ContextValue<T> {
   context: T;
   contextNames: {
     [K in keyof T]: string;
@@ -25,7 +25,7 @@ export function createContextsIterator<T extends object>(
     .map(([key, value]) => [
       key, Object.entries(value),
     ])
-    .filter(([key, value]) => value.length > 0) as [string, [string, any[]]][];
+    .filter(([key, value]) => value.length > 0) as Array<[string, [string, any[]]]>;
 
   const valueFromIndex = (index: number) => {
     const outputContext: { [k: string]: any } = {};
@@ -33,7 +33,8 @@ export function createContextsIterator<T extends object>(
 
     let lenProduct = 1;
     contextGeneratorLists.forEach(([key, options], i) => {
-      const [contextName, contextGenerator] = options[Math.floor(index / lenProduct) % options.length];
+      const optionsIndex = Math.floor(index / lenProduct) % options.length;
+      const [contextName, contextGenerator] = options[optionsIndex];
       lenProduct *= options.length;
       outputContext[key] = contextGenerator();
       outputContextNames[key] = contextName;
@@ -45,11 +46,11 @@ export function createContextsIterator<T extends object>(
     } as ContextValue<T>;
   };
 
-  const numItems = contextGeneratorLists.reduce((product, [key, options]) => product * options.length, 1);
+  const numItems = contextGeneratorLists.reduce((product, [key, options]) => (
+    product * options.length
+  ), 1);
 
   const getIterator = () => {
-    const contextGeneratorIndices = contextGeneratorLists.map(() => 0);
-
     let index = 0;
 
     const next = () => {

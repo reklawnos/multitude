@@ -8,7 +8,7 @@
   "scripts": {
     "build": "rollup -c",
     "test": "jest",
-    "tslint": "tslint --project tsconfig.json 'src/**/*.ts' --format stylish"
+    "lint": "tslint --project tsconfig.json 'src/**/*.ts' --format stylish"
   },
   "author": "Walker Henderson <wjahenderson@gmail.com>",
   "license": "MIT",
@@ -20,6 +20,8 @@
     "rollup-plugin-node-resolve": "^3.3.0",
     "rollup-plugin-typescript2": "^0.13.0",
     "ts-jest": "^22.4.4",
+    "tslint": "^5.10.0",
+    "tslint-config-airbnb": "^5.9.2",
     "typescript": "^2.8.3"
   },
   "dependencies": {}

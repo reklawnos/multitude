@@ -1,6 +1,5 @@
 import {
   createContextsIterator,
-  ContextValue,
   ContextsIterator,
   ContextGenerators,
 } from './ContextUtils';
@@ -31,13 +30,16 @@ type SpecItem<C, PS> = {
   spec: (subject: PS, context: C) => void;
 };
 
-type TestItem<C, PS, S=any> =
+type TestItem<C, PS, S = any> =
   | WithSubjectItem<C, PS, S>
   | WithContextsItem<C, PS>
   | SpecItem<C, PS>;
 
 
-export function withUniverse<C extends object>(contextGenerators: ContextGenerators<C>, tests: TestItem<C, undefined>[]) {
+export function withUniverse<C extends object>(
+  contextGenerators: ContextGenerators<C>,
+  tests: TestItem<C, undefined>[],
+) {
   runInUniverse<C, undefined>(contextGenerators, tests, () => undefined);
 }
 
@@ -128,12 +130,16 @@ function runInUniverse<C extends object, S>(
   });
 }
 
-function runInContexts<T, S>(contextsIterator: ContextsIterator<T>, getSubject: (context: T) => S, spec: (subject: S, context: T) => void) {
+function runInContexts<T, S>(
+  contextsIterator: ContextsIterator<T>,
+  getSubject: (context: T) => S,
+  specFunc: (subject: S, context: T) => void,
+) {
   const caughtErrors: [Error, {}][] = [];
-  for (let value of contextsIterator) {
+  for (const value of contextsIterator) {
     try {
-      spec(getSubject(value.context), value.context);
-    } catch(e) {
+      specFunc(getSubject(value.context), value.context);
+    } catch (e) {
       caughtErrors.push([e, value.contextNames]);
     }
   }

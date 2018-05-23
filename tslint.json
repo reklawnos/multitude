@@ -2,17 +2,15 @@
     "defaultSeverity": "error",
     "extends": [
         "tslint:recommended",
-        "tslint-react",
         "tslint-config-airbnb"
     ],
     "jsRules": {},
     "rules": {
       "align": false,
+      "array-type": false,
       "import-name": false,
       "interface-name": false,
       "interface-over-type-literal": false,
-      "jsx-no-lambda": false,
-      "jsx-no-multiline-js": false,
       "max-classes-per-file": false,
       "member-ordering": false,
       "no-consecutive-blank-lines": [true, 2],
@@ -24,6 +22,7 @@
       "object-literal-sort-keys": false,
       "object-shorthand-properties-first": false,
       "ordered-imports": false,
+      "prefer-array-literal": false,
       "strict-boolean-expressions": false,
       "variable-name": [
         true,
