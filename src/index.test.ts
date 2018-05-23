@@ -58,5 +58,9 @@ universe({
         expect(italic).toBe(context.italic);
       }),
     ]),
+
+    inv('with promise good', () => {
+      return Promise.resolve('foo');
+    }),
   ]),
 ]);

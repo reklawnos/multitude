@@ -108,7 +108,7 @@ function runInUniverse<C extends object, S>(
       case TestItemType.Invariant: {
         it(test.name, () => {
           const contexts = createContextsIterator<C>(contextGenerators);
-          runInContexts<C, S>(contexts, getSubject, test.spec);
+          return runInContexts<C, S>(contexts, getSubject, test.spec);
         });
         break;
       }
@@ -121,7 +121,6 @@ function runInUniverse<C extends object, S>(
         break;
       }
       case TestItemType.WithContexts: {
-        // TODO: should have a decent name
         describe(test.name, () => {
           runInUniverse(test.contextGeneratorMap(contextGenerators), test.children, getSubject);
         });
@@ -133,28 +132,46 @@ function runInUniverse<C extends object, S>(
 function runInContexts<T, S>(
   contextsIterator: ContextsIterator<T>,
   getSubject: (context: T) => S,
-  specFunc: (subject: S, context: T) => void,
+  specFunc: ((subject: S, context: T) => void)
+    | ((subject: S, context: T) => Promise<any>),
 ) {
   const caughtErrors: [Error, {}][] = [];
+  const remainingPromises: Promise<any>[] = [];
   for (const value of contextsIterator) {
     try {
-      specFunc(getSubject(value.context), value.context);
+      const promise = specFunc(getSubject(value.context), value.context);
+      if (promise) {
+        remainingPromises.push(promise.catch((e) => {
+          caughtErrors.push([e, value.contextNames]);
+        }));
+      }
     } catch (e) {
       caughtErrors.push([e, value.contextNames]);
     }
   }
-  if (caughtErrors.length > 0) {
-    let out = '';
-    caughtErrors.forEach(([e, contextNames]) => {
-      out += 'When:\n';
-      const lines = Object.entries(contextNames)
-        .map(([key, name]) => `• ${key} is ${name}`);
-      out += lines.join('\n') + '\n\n';
-      out += e.message + '\n\n\n';
+
+  const doThrow = () => {
+    if (caughtErrors.length > 0) {
+      let out = '';
+      caughtErrors.forEach(([e, contextNames]) => {
+        out += 'When:\n';
+        const lines = Object.entries(contextNames)
+          .map(([key, name]) => `• ${key} is ${name}`);
+        out += lines.join('\n') + '\n\n';
+        out += e.message + '\n\n\n';
+      });
+
+      caughtErrors[0][0].message = out;
+
+      throw caughtErrors[0][0];
+    }
+  };
+
+  if (remainingPromises.length <= 0) {
+    doThrow();
+  } else {
+    return Promise.all(remainingPromises).then(() => {
+      doThrow();
     });
-
-    caughtErrors[0][0].message = out;
-
-    throw caughtErrors[0][0];
   }
 }
