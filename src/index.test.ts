@@ -1,14 +1,15 @@
 // tslint:disable object-literal-key-quotes
 import {
-  withUniverse,
-  withSubject,
+  universe,
+  subject,
   withContexts,
-  spec,
+  inv,
   fixAxes,
 } from './index';
 
 function brokenThing(color: string, bold: boolean, italic: boolean) {
   let overrideColor = color;
+
   if (italic) {
     overrideColor = 'red';
   }
@@ -20,7 +21,7 @@ function brokenThing(color: string, bold: boolean, italic: boolean) {
   };
 }
 
-withUniverse({
+universe({
   color: {
     'red': () => 'red',
     'blue': () => 'blue',
@@ -37,23 +38,23 @@ withUniverse({
     'not italic': () => false,
   },
 }, [
-  withSubject('brokenThing', (s, c) => brokenThing(c.color, c.bold, c.italic), [
-    withContexts('when red', gc => fixAxes(gc, { color: 'red' }), [
-      withSubject('color', s => s.color, [
-        spec('has the right color', (color, context) => {
+  subject('brokenThing', (s, c) => brokenThing(c.color, c.bold, c.italic), [
+    subject('color', s => s.color, [
+      withContexts('when red', gc => fixAxes(gc, { color: 'red' }), [
+        inv('has the right color', (color, context) => {
           expect(color).toBe(context.color);
         }),
       ]),
     ]),
 
-    withSubject('bold', s => s.bold, [
-      spec('has the right boldness', (bold, context) => {
+    subject('bold', s => s.bold, [
+      inv('has the right boldness', (bold, context) => {
         expect(bold).toBe(context.bold);
       }),
     ]),
 
-    withSubject('italic', s => s.italic, [
-      spec('has the right italic-ness', (italic, context) => {
+    subject('italic', s => s.italic, [
+      inv('has the right italic-ness', (italic, context) => {
         expect(italic).toBe(context.italic);
       }),
     ]),

@@ -7,7 +7,7 @@ import {
 export enum TestItemType {
   WithSubject = 'WithSubject',
   WithContexts = 'WithContexts',
-  Spec = 'Spec',
+  Invariant = 'Invariant',
 }
 
 export type WithSubjectItem<C, PS, S> = {
@@ -24,8 +24,8 @@ export type WithContextsItem<C, PS> = {
   children: TestItem<C, PS>[];
 };
 
-export type SpecItem<C, PS> = {
-  type: TestItemType.Spec;
+export type InvariantItem<C, PS> = {
+  type: TestItemType.Invariant;
   name: string,
   spec: (subject: PS, context: C) => void;
 };
@@ -33,10 +33,10 @@ export type SpecItem<C, PS> = {
 export type TestItem<C, PS, S = any> =
   | WithSubjectItem<C, PS, S>
   | WithContextsItem<C, PS>
-  | SpecItem<C, PS>;
+  | InvariantItem<C, PS>;
 
 
-export function withUniverse<C extends object>(
+export function universe<C extends object>(
   contextGenerators: ContextGenerators<C>,
   tests: TestItem<C, undefined>[],
 ) {
@@ -56,7 +56,7 @@ export function withContexts<C extends object, S>(
   };
 }
 
-export function withSubject<C, ParentSubject = undefined, Subject = ParentSubject>(
+export function subject<C, ParentSubject = undefined, Subject = ParentSubject>(
   name: string,
   subjectGenerator: (parentSubject: ParentSubject, context: C) => Subject,
   tests: TestItem<C, Subject>[],
@@ -69,12 +69,12 @@ export function withSubject<C, ParentSubject = undefined, Subject = ParentSubjec
   };
 }
 
-export function spec<C, ParentSubject>(
+export function inv<C, ParentSubject>(
   name: string,
   f: (subject: ParentSubject, context: C) => void,
-): SpecItem<C, ParentSubject> {
+): InvariantItem<C, ParentSubject> {
   return {
-    type: TestItemType.Spec,
+    type: TestItemType.Invariant,
     name,
     spec: f,
   };
@@ -105,7 +105,7 @@ function runInUniverse<C extends object, S>(
 ) {
   tests.forEach((test) => {
     switch (test.type) {
-      case TestItemType.Spec: {
+      case TestItemType.Invariant: {
         it(test.name, () => {
           const contexts = createContextsIterator<C>(contextGenerators);
           runInContexts<C, S>(contexts, getSubject, test.spec);
